@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: pdf_document
+---
+
+```{r setup}
+library(tidyverse)
+library(caret)
+library(tidymodels)
+
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+```
+
+```{r}
+num_vars <- train %>% select(cont1:cont14, loss)
+
+library(corrplot)
+corrplot(cor(num_vars), method = "color", type = "upper", diag = FALSE, addCoef.col = "black", number.digits = 2)
+
+# From the correlation plot, almost none of the continuous variables have a strong correlation with the loss,
+# but it looks like there is a good amount of correlation among the continuous variables. Multicolinearity may be a problem with these
+```
+
+```{r}
+ggplot(train, aes(x = loss)) + geom_histogram(fill = "firebrick4")
+train %>%
+    filter(loss > 20000) %>%
+    summarize(n(), n()/nrow(train))
+
+library(e1071)
+skewness(train$loss) # Positive means right skewed, negative means left skewed
+# There is a large right skew to the distribution of loss. About .2% of the observations have a loss greater than 20000
+box_trans <- BoxCoxTrans(train$loss)
+box_trans
+# With lambda estimated as 0, the best transformation is the natural log of loss
+
+# Now it is approximately normal with a few outliers
+ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
+```
+
+
