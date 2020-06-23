@@ -29,3 +29,4 @@ vignettes/*.pdf
 # Data files
 train.csv
 test.csv
+sample_submission.csv
