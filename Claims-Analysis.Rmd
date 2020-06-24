@@ -10,6 +10,7 @@ library(tidymodels)
 
 train <- read.csv("train.csv")
 test <- read.csv("test.csv")
+test <- test %>% mutate(loss = NA)
 ```
 
 ```{r}
@@ -39,4 +40,43 @@ box_trans
 ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 ```
 
+```{r}
+myControl <- trainControl(method = "boot",
+                          number = 5)
+
+total_prop <- function(data, col){
+  data %>% group_by(col) %>% 
+    summarize(prop = n()/length(col))
+}
+
+total_prop(train, cont1)
+train %>% group_by(cat108) %>%
+summarize(prop = n()/nrow(train))
+
+# Need to make an X matrix
+removed_vars <- train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
+grid <- expand.grid("alpha" = c(0,.5,1), "lambda" = c(.1, .05,.5, .75, .0001))
+glmnet.mod <- train(log(loss)~., 
+                    data = removed_vars,
+                    method = "glmnet",
+                    trControl = myControl,
+                    tuneGrid = grid)
+glmnet.mod
+beepr::beep(sound = 8)
+preds <- predict(glmnet.mod, test) %>% exp()
+glmnet.preds <- data.frame(id= test$id, loss = preds)
+write_csv(glmnet.preds, "glmnet-preds.csv")
+```
+
+
+```{r}
+rf.grid <- expand.grid("mtry" = c(20, 40, 80, 160, 200), "splitrule" ="extratrees", "min.node.size" = 1)
+rf.model <- train(log(loss)~.,
+                  data = removed_vars,
+                  method = "ranger",
+                  trControl=myControl,
+                  tuneGrid = rf.grid)
+rf.model
+beepr::beep(sound = 2)
+```
 
