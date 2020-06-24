@@ -42,7 +42,7 @@ ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 
 ```{r}
 myControl <- trainControl(method = "boot",
-                          number = 5)
+                          number = 3)
 
 total_prop <- function(data, col){
   data %>% group_by(col) %>% 
@@ -70,7 +70,8 @@ write_csv(glmnet.preds, "glmnet-preds.csv")
 
 
 ```{r}
-rf.grid <- expand.grid("mtry" = c(20, 40, 80, 160, 200), "splitrule" ="extratrees", "min.node.size" = 1)
+rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" ="extratrees", "min.node.size" = 1)
+# 20 came out as the best
 rf.model <- train(log(loss)~.,
                   data = removed_vars,
                   method = "ranger",
@@ -78,5 +79,8 @@ rf.model <- train(log(loss)~.,
                   tuneGrid = rf.grid)
 rf.model
 beepr::beep(sound = 2)
+rf.preds <- predict(rf.model, test) %>% exp()
+rf.preds.frame <- data.frame(id= test$id, loss = rf.preds)
+write_csv(rf.preds.frame, "rf-preds.csv")
 ```
 
