@@ -93,6 +93,11 @@ write_csv(rf.preds.frame, "rf-preds.csv")
 ```
 
 ```{r}
+varImp(rf.model$finalModel)
+```
+
+
+```{r}
 set.seed(062520)
 grid <- expand.grid("n.trees" = 434, "interaction.depth" = 7, "shrinkage" = .05, "n.minobsinnode" = c(2, 5, 10, 20, 40))
 gbm.model <- train(log(loss)~.,
@@ -105,6 +110,9 @@ gbm.model <- train(log(loss)~.,
 gbm.model
 beepr::beep(sound = 2)
 gbm.preds <- predict(gbm.model, test) %>% exp()
+
+# Error in model.frame.default(Terms, newdata, na.action = na.action, xlev = object$xlevels) : factor cat90 has new levels E, F
+
 gbm.preds.frame <- data.frame(id = test$id, loss = gbm.preds)
 write_csv(gbm.preds.frame, "gbm-preds_2.csv")
 # 30th percentile is the best this does
