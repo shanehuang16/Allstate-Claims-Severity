@@ -40,6 +40,15 @@ box_trans
 ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 ```
 
+
+```{r}
+# I am going to take part of the training data to save computation time
+samp <- sample(1:nrow(train), size = (.1*nrow(train)), replace = FALSE)
+small_train <- train[samp, ]
+ggplot(small_train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
+ggplot(small_train, aes(x = loss)) + geom_histogram(fill = "firebrick4")
+```
+
 ```{r}
 myControl <- trainControl(method = "boot",
                           number = 3)
@@ -54,7 +63,7 @@ train %>% group_by(cat108) %>%
 summarize(prop = n()/nrow(train))
 
 # Need to make an X matrix
-removed_vars <- train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
+removed_vars <- small_train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
 grid <- expand.grid("alpha" = c(0,.5,1), "lambda" = c(.1, .05,.5, .75, .0001))
 glmnet.mod <- train(log(loss)~., 
                     data = removed_vars,
@@ -82,5 +91,22 @@ beepr::beep(sound = 2)
 rf.preds <- predict(rf.model, test) %>% exp()
 rf.preds.frame <- data.frame(id= test$id, loss = rf.preds)
 write_csv(rf.preds.frame, "rf-preds.csv")
+```
+
+```{r}
+set.seed(062520)
+grid <- expand.grid("n.trees" = 434, "interaction.depth" = 7, "shrinkage" = c(.01, .05,.075), "n.minobsinnode" = 20)
+gbm.model <- train(log(loss)~.,
+                   data = removed_vars,
+                   method = "gbm",
+                   trControl = myControl,
+                   tuneGrid = grid,
+                   preProc = c("nzv", "zv", "center", "scale"),
+                   metric = "MAE")
+gbm.model
+beepr::beep(sound = 2)
+gbm.preds <- predict(gbm.model, test) %>% exp()
+gbm.preds.frame <- data.frame(id= test$id, loss = gbm.preds)
+write_csv(gbm.preds.frame, "gbm-preds.csv")
 ```
 
