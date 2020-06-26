@@ -58,7 +58,7 @@ total_prop <- function(data, col){
     summarize(prop = n()/length(col))
 }
 
-total_prop(train, cont1)
+total_prop(train, cont1) # Error: Must group by variables found in `.data`. * Column `col` is not found.
 train %>% group_by(cat108) %>%
 summarize(prop = n()/nrow(train))
 
@@ -73,23 +73,22 @@ glmnet.mod <- train(log(loss)~.,
 glmnet.mod
 beepr::beep(sound = 8)
 preds <- predict(glmnet.mod, test) %>% exp()
-glmnet.preds <- data.frame(id= test$id, loss = preds)
+glmnet.preds <- data.frame(id = test$id, loss = preds)
 write_csv(glmnet.preds, "glmnet-preds.csv")
 ```
 
-
 ```{r}
-rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" ="extratrees", "min.node.size" = 1)
+rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" = "extratrees", "min.node.size" = 1)
 # 20 came out as the best
 rf.model <- train(log(loss)~.,
                   data = removed_vars,
                   method = "ranger",
-                  trControl=myControl,
+                  trControl = myControl,
                   tuneGrid = rf.grid)
 rf.model
 beepr::beep(sound = 2)
 rf.preds <- predict(rf.model, test) %>% exp()
-rf.preds.frame <- data.frame(id= test$id, loss = rf.preds)
+rf.preds.frame <- data.frame(id = test$id, loss = rf.preds)
 write_csv(rf.preds.frame, "rf-preds.csv")
 ```
 
@@ -106,7 +105,7 @@ gbm.model <- train(log(loss)~.,
 gbm.model
 beepr::beep(sound = 2)
 gbm.preds <- predict(gbm.model, test) %>% exp()
-gbm.preds.frame <- data.frame(id= test$id, loss = gbm.preds)
+gbm.preds.frame <- data.frame(id = test$id, loss = gbm.preds)
 write_csv(gbm.preds.frame, "gbm-preds_2.csv")
 # 30th percentile is the best this does
 ```
@@ -132,7 +131,8 @@ xgb.model <- train(log(loss)~.,
 xgb.model
 beepr::beep(sound = 2)
 xgb.preds <- predict(xgb.model, test) %>% exp()
-xgb.preds.frame <- data.frame(id= test$id, loss = xgb.preds)
+xgb.preds.frame <- data.frame(id = test$id, loss = xgb.preds)
 write_csv(xgb.preds.frame, "xgb-preds.csv")
 ```
+
 
