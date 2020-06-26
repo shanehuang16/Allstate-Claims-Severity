@@ -95,7 +95,7 @@ write_csv(rf.preds.frame, "rf-preds.csv")
 
 ```{r}
 set.seed(062520)
-grid <- expand.grid("n.trees" = 434, "interaction.depth" = 7, "shrinkage" = c(.01, .05,.075), "n.minobsinnode" = 20)
+grid <- expand.grid("n.trees" = 434, "interaction.depth" = 7, "shrinkage" = .05, "n.minobsinnode" = c(2, 5, 10, 20, 40))
 gbm.model <- train(log(loss)~.,
                    data = removed_vars,
                    method = "gbm",
@@ -107,6 +107,32 @@ gbm.model
 beepr::beep(sound = 2)
 gbm.preds <- predict(gbm.model, test) %>% exp()
 gbm.preds.frame <- data.frame(id= test$id, loss = gbm.preds)
-write_csv(gbm.preds.frame, "gbm-preds.csv")
+write_csv(gbm.preds.frame, "gbm-preds_2.csv")
+# 30th percentile is the best this does
+```
+
+```{r}
+# Need to tune this more. Again 30th percentile
+set.seed(062520)
+grid <- expand.grid(
+  nrounds = 700, 
+  max_depth = 11, 
+  eta = c(0.01), 
+  gamma = 1, 
+  colsample_bytree = 0.4, 
+  min_child_weight =  1,
+  subsample = 1)
+xgb.model <- train(log(loss)~.,
+                   data = removed_vars,
+                   method = "xgbTree",
+                   trControl = myControl,
+                   tuneGrid = grid,
+                   preProc = c("nzv", "zv", "center", "scale"),
+                   metric = "MAE")
+xgb.model
+beepr::beep(sound = 2)
+xgb.preds <- predict(xgb.model, test) %>% exp()
+xgb.preds.frame <- data.frame(id= test$id, loss = xgb.preds)
+write_csv(xgb.preds.frame, "xgb-preds.csv")
 ```
 
