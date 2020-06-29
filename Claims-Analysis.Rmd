@@ -42,11 +42,11 @@ ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 
 ```{r}
 myControl <- trainControl(method = "boot",
-                          number = 3)
+                          number = 3, allowParallel = TRUE)
 
 total_prop <- function(data, col){
-  data %>% group_by(col) %>% 
-    summarize(prop = n()/length(col))
+  data %>% dplyr::group_by(col) %>% 
+    dplyr::summarize(prop = n()/length(col))
 }
 
 total_prop(train, cont1)
@@ -82,5 +82,25 @@ beepr::beep(sound = 2)
 rf.preds <- predict(rf.model, test) %>% exp()
 rf.preds.frame <- data.frame(id= test$id, loss = rf.preds)
 write_csv(rf.preds.frame, "rf-preds.csv")
+```
+
+
+```{r}
+myControl <- trainControl(method = "cv", 
+                          number = 3,
+                          allowParallel = TRUE)
+gbm.grid <- expand.grid("n.trees" = 100, "interaction.depth" = 5, "shrinkage" = c(0.01,0.1), "n.minobsinnode" = 0)
+
+gbm.mod <- train(loss ~.,
+                 data = removed_vars,
+                 method = "gbm",
+                 trControl = myControl,
+                 tuneGrid = gbm.grid,
+                 metric = "MAE")
+
+gbm.preds <- predict(gbm.mod, test)
+gbm.preds.df <- data.frame(id = test$id, loss = gbm.preds)
+write_csv(gbm.preds.df, "gbm.preds.csv")
+
 ```
 
