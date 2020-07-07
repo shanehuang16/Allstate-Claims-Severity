@@ -40,6 +40,15 @@ box_trans
 ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 ```
 
+
+```{r}
+# I am going to take part of the training data to save computation time
+samp <- sample(1:nrow(train), size = (.1*nrow(train)), replace = FALSE)
+small_train <- train[samp, ]
+ggplot(small_train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
+ggplot(small_train, aes(x = loss)) + geom_histogram(fill = "firebrick4")
+```
+
 ```{r}
 myControl <- trainControl(method = "boot",
                           number = 3, allowParallel = TRUE)
@@ -49,12 +58,12 @@ total_prop <- function(data, col){
     dplyr::summarize(prop = n()/length(col))
 }
 
-total_prop(train, cont1)
+total_prop(train, cont1) # Error: Must group by variables found in `.data`. * Column `col` is not found.
 train %>% group_by(cat108) %>%
 summarize(prop = n()/nrow(train))
 
 # Need to make an X matrix
-removed_vars <- train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
+removed_vars <- small_train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
 grid <- expand.grid("alpha" = c(0,.5,1), "lambda" = c(.1, .05,.5, .75, .0001))
 glmnet.mod <- train(log(loss)~., 
                     data = removed_vars,
@@ -64,26 +73,26 @@ glmnet.mod <- train(log(loss)~.,
 glmnet.mod
 beepr::beep(sound = 8)
 preds <- predict(glmnet.mod, test) %>% exp()
-glmnet.preds <- data.frame(id= test$id, loss = preds)
+glmnet.preds <- data.frame(id = test$id, loss = preds)
 write_csv(glmnet.preds, "glmnet-preds.csv")
 ```
 
-
 ```{r}
-rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" ="extratrees", "min.node.size" = 1)
+rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" = "extratrees", "min.node.size" = 1)
 # 20 came out as the best
 rf.model <- train(log(loss)~.,
                   data = removed_vars,
                   method = "ranger",
-                  trControl=myControl,
+                  trControl = myControl,
                   tuneGrid = rf.grid)
 rf.model
 beepr::beep(sound = 2)
 rf.preds <- predict(rf.model, test) %>% exp()
-rf.preds.frame <- data.frame(id= test$id, loss = rf.preds)
+rf.preds.frame <- data.frame(id = test$id, loss = rf.preds)
 write_csv(rf.preds.frame, "rf-preds.csv")
 ```
 
+<<<<<<< HEAD
 
 ```{r}
 myControl <- trainControl(method = "cv", 
@@ -104,3 +113,93 @@ write_csv(gbm.preds.df, "gbm.preds.csv")
 
 ```
 
+```{r}
+set.seed(062920)
+
+trainIndex <- createDataPartition(train$loss, p = .05, times = 1, list = FALSE)
+
+trainLoss <- train[trainIndex,]
+
+gbm.part.grid <- expand.grid("n.trees" = 2000, "interaction.depth" = 9, "shrinkage" = .01, "n.minobsinnode" = 0)
+
+gbm.mod.part <- train(loss~.,
+                      data = trainLoss,
+                      method = "gbm",
+                      trControl = myControl,
+                      tuneGrid = gbm.part.grid,
+                      metric = "MAE")
+
+gbm.part.preds <- predict(gbm.mod.part, test[test$cat89 != "F" & test$cat92 != "E" &
+                                               test$cat92 != "G" &
+                                               test$cat96 != "H" &
+                                               test$cat99 != "U" &
+                                               test$cat103 != "M" &
+                                               test$cat106 != "Q" &
+                                               test$cat109 != "AD" &
+                                               test$cat110 != "BH" &
+                                               test$cat110 != "CA" &
+                                               test$cat110 != "EN" & 
+                                               test$cat111 != "L" &
+                                               test$cat113 != "R" &
+                                               !(test$cat116 %in% c("A", "AI", "AQ", "BE", "BH", "BJ", "BN", "BR", "DB", "EM", "ER", "ET", "EX",
+                                                                    "FY", "HS", "IS", "JS", "KO", "LP", "MX", "N")),])
+gbm.part.preds.df <- data.frame(id = test$id, loss = gbm.part.preds)
+write_csv(gbm.part.preds.df, "gbm.part.preds.csv")
+
+```
+
+
+=======
+```{r}
+varImp(rf.model$finalModel)
+```
+
+
+```{r}
+set.seed(062520)
+grid <- expand.grid("n.trees" = 434, "interaction.depth" = 7, "shrinkage" = .05, "n.minobsinnode" = c(2, 5, 10, 20, 40))
+gbm.model <- train(log(loss)~.,
+                   data = removed_vars,
+                   method = "gbm",
+                   trControl = myControl,
+                   tuneGrid = grid,
+                   preProc = c("nzv", "zv", "center", "scale"),
+                   metric = "MAE")
+gbm.model
+beepr::beep(sound = 2)
+gbm.preds <- predict(gbm.model, test) %>% exp()
+
+# Error in model.frame.default(Terms, newdata, na.action = na.action, xlev = object$xlevels) : factor cat90 has new levels E, F
+
+gbm.preds.frame <- data.frame(id = test$id, loss = gbm.preds)
+write_csv(gbm.preds.frame, "gbm-preds_2.csv")
+# 30th percentile is the best this does
+```
+
+```{r}
+# Need to tune this more. Again 30th percentile
+set.seed(062520)
+grid <- expand.grid(
+  nrounds = 700, 
+  max_depth = 11, 
+  eta = c(0.01), 
+  gamma = 1, 
+  colsample_bytree = 0.4, 
+  min_child_weight =  1,
+  subsample = 1)
+xgb.model <- train(log(loss)~.,
+                   data = removed_vars,
+                   method = "xgbTree",
+                   trControl = myControl,
+                   tuneGrid = grid,
+                   preProc = c("nzv", "zv", "center", "scale"),
+                   metric = "MAE")
+xgb.model
+beepr::beep(sound = 2)
+xgb.preds <- predict(xgb.model, test) %>% exp()
+xgb.preds.frame <- data.frame(id = test$id, loss = xgb.preds)
+write_csv(xgb.preds.frame, "xgb-preds.csv")
+```
+
+
+>>>>>>> 1083e434870fa53182f397d9c85f1b37c01ea97a
