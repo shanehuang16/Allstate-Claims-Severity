@@ -10,7 +10,7 @@ library(tidymodels)
 
 train <- read.csv("train.csv")
 test <- read.csv("test.csv")
-test <- test %>% mutate(loss = NA)
+test <- test %>% mutate(loss = 0)
 ```
 
 ```{r}
@@ -42,11 +42,25 @@ ggplot(train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 
 
 ```{r}
+
+set.seed(041796)
 # I am going to take part of the training data to save computation time
 samp <- sample(1:nrow(train), size = (.1*nrow(train)), replace = FALSE)
 small_train <- train[samp, ]
 ggplot(small_train, aes(x = log(loss))) + geom_histogram(fill = "firebrick4")
 ggplot(small_train, aes(x = loss)) + geom_histogram(fill = "firebrick4")
+```
+
+```{r}
+# Create an X matrix 
+dat <- rbind(train, test) %>% select(-cat109, -cat110, -cat116)
+Xmat <- model.matrix(log(loss)~., data = dat)
+y <- log(dat$loss[1:nrow(train)])
+train.mat <- Xmat[1:nrow(train),]
+test.mat <- Xmat[(nrow(train) + 1):nrow(Xmat),] 
+samp <- sample(1:nrow(train), size = (.1*nrow(train)), replace = FALSE)
+small_train_mat <- train.mat[samp,]
+y_small <- y[samp]
 ```
 
 ```{r}
@@ -65,35 +79,36 @@ summarize(prop = n()/nrow(train))
 # Need to make an X matrix
 removed_vars <- small_train %>% select(-id, -cat89, -cat92, -cat96, -cat99, -cat103, -cat106, -cat109, -cat110, -cat111, -cat113, -cat115, -cat116, -cat114, -cat112)
 grid <- expand.grid("alpha" = c(0,.5,1), "lambda" = c(.1, .05,.5, .75, .0001))
-glmnet.mod <- train(log(loss)~., 
-                    data = removed_vars,
+glmnet.mod <- train(x = small_train_mat, 
+                    y = y_small,
                     method = "glmnet",
                     trControl = myControl,
                     tuneGrid = grid)
 glmnet.mod
 beepr::beep(sound = 8)
-preds <- predict(glmnet.mod, test) %>% exp()
+preds <- predict(glmnet.mod, test.mat) %>% exp()
 glmnet.preds <- data.frame(id = test$id, loss = preds)
-write_csv(glmnet.preds, "glmnet-preds.csv")
+write_csv(glmnet.preds, "glmnet-preds-mat.csv")
 ```
 
 ```{r}
-rf.grid <- expand.grid("mtry" = c(20, 40, 80), "splitrule" = "extratrees", "min.node.size" = 1)
+rf.grid <- expand.grid("mtry" = c(20), "splitrule" = "extratrees", "min.node.size" = 1)
 # 20 came out as the best
-rf.model <- train(log(loss)~.,
-                  data = removed_vars,
+rf.model <- train(x = small_train_mat, 
+                  y = y_small,
                   method = "ranger",
                   trControl = myControl,
-                  tuneGrid = rf.grid)
+                  tuneGrid = rf.grid, 
+                  importance = "permutation")
 rf.model
 beepr::beep(sound = 2)
-rf.preds <- predict(rf.model, test) %>% exp()
+rf.preds <- predict(rf.model, test.mat) %>% exp()
 rf.preds.frame <- data.frame(id = test$id, loss = rf.preds)
-write_csv(rf.preds.frame, "rf-preds.csv")
+write_csv(rf.preds.frame, "rf-preds-mat.csv")
 ```
 
 ```{r}
-varImp(rf.model$finalModel)
+varImp(rf.model)
 ```
 
 
